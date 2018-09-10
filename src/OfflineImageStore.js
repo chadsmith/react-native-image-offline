@@ -100,20 +100,8 @@ class OfflineImageStore {
       });
   };
 
-  prefetch = async (props) => {
-    const entry = this._getEntry(props);
-    // If image not exist already, then download
-    if (!entry) {
-      this._downloadImage(props);
-      return;
-    }
-    // Exists but Base Dir changed , may be due to update new app version or whatever
-    if (entry) {
-      // Only exist if base directory matches
-      if (entry.basePath !== this.getBaseDir()) {
-        this._downloadImage(props);
-      }
-    }
+  prefetch = (props) => {
+    return this._getImage(props);
   }
 
   subscribe = async (handler, props) => {
@@ -127,11 +115,11 @@ class OfflineImageStore {
     }
 
     // Get the image if already exist else download and notify!
-    this._getImage(props);
+    await this._getImage(props);
   };
 
   // Unsubscribe all the handlers for the given source uri
-  unsubscribe = async (handler, { source }) => {
+  unsubscribe = (handler, { source }) => {
     delete this.handlers[source.uri];
   };
 
@@ -258,18 +246,18 @@ class OfflineImageStore {
           if (this.store.debugMode) {
             console.log('reloadImage is set to true for uri:', uri);
           }
-          this._downloadImage(props);
+          return this._downloadImage(props);
         }
       } else {
-        this._downloadImage(props);
+        return this._downloadImage(props);
       }
-      return;
+      return Promise.resolve();
     }
 
     if (this.store.debugMode) {
       console.log('Image not exist offline', uri);
     }
-    this._downloadImage(props);
+    return this._downloadImage(props);
   };
 
   _downloadImage = (props) => {
@@ -277,7 +265,7 @@ class OfflineImageStore {
     const { headers, method='GET', uri } = source;
     const { hash, extension } = this._getEntryProps(props);
     const filename = `${hash}${extension}`;
-    RNFetchBlob
+    return RNFetchBlob
       .config({
         path: `${this.getBaseDir()}/${filename}`
       })
