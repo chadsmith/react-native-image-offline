@@ -36,7 +36,7 @@ class OfflineImageStore {
    * Gives the Offline store cache base directory
    */
   getBaseDir = () => {
-    return RNFetchBlob.fs.dirs.CacheDir + '/' + this.store.name;
+    return `${RNFetchBlob.fs.dirs.CacheDir}/${this.store.name}`;
   };
 
   /**
@@ -63,11 +63,12 @@ class OfflineImageStore {
     // Restore existing entries:
     AsyncStorage.getItem(`@${this.store.name}:uris`, (err, uris) => { // On `getItems` completion
 
-      if (this.store.debugMode) {
-        console.log('Restored offline images entry dictionary');
-      }
       // Assign uris to entry list cache(`this.entries`)
       Object.assign(this.entries, JSON.parse(uris));
+
+      if (this.store.debugMode) {
+        console.log('Restored offline images entry dictionary', this.entries);
+      }
 
       // Remove Expired images from offline store and then call user given callback completion method !
       this._removeExpiredImages(onRestoreCompletion);
@@ -112,7 +113,9 @@ class OfflineImageStore {
       const entry = this.entries[uri];
       // If image not exist already, then download
       if (!entry) {
-        this._downloadImage({ uri });
+        this._downloadImage({
+          source: { uri },
+        });
         return;
       }
 
@@ -120,16 +123,17 @@ class OfflineImageStore {
       if (entry) {
         // Only exist if base directory matches
         if (entry.basePath !== this.getBaseDir()) {
-          this._downloadImage({ uri });
+          this._downloadImage({
+            source: { uri },
+          });
         }
       }
     });
   };
 
-  subscribe = async (source, handler, reloadImage, ignoreQueryString) => {
-    let { uri } = source;
-    if(ignoreQueryString)
-      uri = this._stripQueryString(uri);
+  subscribe = async (handler, props) => {
+    const { source } = props;
+    const { uri } = source;
 
     if (!this.handlers[uri]) {
       this.handlers[uri] = [handler];
@@ -138,24 +142,19 @@ class OfflineImageStore {
     }
 
     // Get the image if already exist else download and notify!
-    this._getImage(source, reloadImage, ignoreQueryString);
+    this._getImage(props);
   };
 
-  // Un subscribe all the handlers for the given source uri
-  unsubscribe = async (source, ignoreQueryString) => {
-    let { uri } = source;
-    if(ignoreQueryString)
-      uri = this._stripQueryString(uri);
-    delete this.handlers[uri];
+  // Unsubscribe all the handlers for the given source uri
+  unsubscribe = async (handler, { source }) => {
+    delete this.handlers[source.uri];
   };
 
   /**
    * Check whether given uri already exist in our offline cache!
    * @param uri uri to check in offline cache list
    */
-  isImageExistOffline = (uri, ignoreQueryString) => {
-    if(ignoreQueryString)
-      uri = this._stripQueryString(uri);
+  isImageExistOffline = (uri) => {
     return this.entries[uri] !== undefined;
   };
 
@@ -184,7 +183,7 @@ class OfflineImageStore {
     }
     uriListToRemove.forEach((uri) => {
       // Remove image from cache
-      const unlinkPromise = RNFetchBlob.fs.unlink(this.entries[uri].basePath + '/' + this.entries[uri].localUriPath)
+      const unlinkPromise = RNFetchBlob.fs.unlink(`${this.entries[uri].basePath}/${this.entries[uri].localUriPath}`)
         .then(() => {
           // Delete entry from cache so that we should remove from offline Async storage
           delete this.entries[uri];
@@ -236,127 +235,132 @@ class OfflineImageStore {
     });
   };
 
-  getImageOfflinePath = (source, ignoreQueryString) => {
-    let { uri } = source;
-    if(ignoreQueryString)
-      uri = this._stripQueryString(uri);
-
-    if (this.entries[uri]) {
-      const entry = this.entries[uri];
+  getImageOfflinePath = (props) => {
+    const entry = this._getEntry(props);
+    if(entry) {
       // Only exist if base directory matches
       if (entry.basePath === this.getBaseDir()) {
         if (this.store.debugMode) {
           console.log('Image exist offline', entry.localUriPath);
         }
-        return entry.basePath + '/' + entry.localUriPath;
+        return `${entry.basePath}/${entry.localUriPath}`;
       }
     }
     if (this.store.debugMode) {
-      console.log('Image not exist offline', source.uri);
+      console.log('Image not exist offline', props.source.uri);
     }
     return undefined;
   };
 
-  _getImage = (source, reloadImage, ignoreQueryString) => {
-    let { uri } = source;
-    if(ignoreQueryString)
-      uri = this._stripQueryString(uri);
+  _getImage = (props) => {
+    const { reloadImage, source } = props;
+    const { uri } = source;
+    const entry = this._getEntry(props);
 
     // Image already exist
-    if (this.entries[uri]) {
-      const entry = this.entries[uri];
+    if (entry) {
       // Only exist if base directory matches
       if (entry.basePath === this.getBaseDir()) {
         if (this.store.debugMode) {
-          console.log('Image exist offline', source.uri);
+          console.log('Image exist offline', uri);
         }
         // Notify subscribed handler
-        this._notify(uri);
+        this._notify(uri, entry);
 
         // Reload image:
         // Update existing image in offline store as server side image could have updated!
         if (reloadImage) {
           if (this.store.debugMode) {
-            console.log('reloadImage is set to true for uri:', source.uri);
+            console.log('reloadImage is set to true for uri:', uri);
           }
-          this._downloadImage(source, uri);
+          this._downloadImage(props);
         }
       } else {
-        this._downloadImage(source, uri);
+        this._downloadImage(props);
       }
       return;
     }
 
     if (this.store.debugMode) {
-      console.log('Image not exist offline', source.uri);
+      console.log('Image not exist offline', uri);
     }
-    this._downloadImage(source);
+    this._downloadImage(props);
   };
 
-  _downloadImage = (source, storeUri) => {
-    storeUri = storeUri || source.uri;
-    const method = source.method ? source.method : 'GET';
-    const imageFilePath = SHA1(storeUri);
+  _downloadImage = (props) => {
+    const { source } = props;
+    const { headers, method='GET', uri } = source;
+    const { hash, extension } = this._getEntryProps(props);
+    const filename = `${hash}${extension}`;
     RNFetchBlob
       .config({
-        path: this.getBaseDir() + '/' + imageFilePath
+        path: `${this.getBaseDir()}/${filename}`
       })
-      .fetch(method, source.uri, source.headers)
+      .fetch(method, uri, headers)
       .then(() => {
         // Add entry to entry list!!
-        this._addEntry(storeUri, imageFilePath);
+        const entry = this._addEntry(hash, filename);
         // Notify subscribed handler AND Persist entries to AsyncStorage for offline
-        this._updateOfflineStore(storeUri).done();
-      }).catch(() => {
-      if (this.store.debugMode) {
-        console.log('Failed to download image', source.uri);
-      }
-    });
+        this._updateOfflineStore(uri, entry).done();
+      })
+      .catch(() => {
+        if (this.store.debugMode) {
+          console.log('Failed to download image', uri);
+        }
+      });
   };
 
-  _notify = (uri) => {
+  _notify = (uri, entry) => {
     const handlers = this.handlers[uri];
     if (handlers && handlers.length > 0) {
       handlers.forEach(handler => {
         if (this.store.debugMode) {
           console.log('Notify handler called', uri);
         }
-        handler(uri, this.entries[uri].basePath + '/' + this.entries[uri].localUriPath);
+        handler(uri, `${entry.basePath}/${entry.localUriPath}`);
       });
     }
   };
 
-  _stripQueryString = (uri) => {
-    return uri.split('?')[0];
+  _getEntry = (props) => {
+    const { hash } = this._getEntryProps(props);
+    return this.entries[hash];
   }
 
-  _addEntry = (uri, imageFilePath) => {
-    // Save Downloaded date when image downloads for first time
-    if (this.entries[uri] === undefined) {
-      this.entries[uri] = {
-        createdOn: new Date().toString(),
-        basePath: this.getBaseDir(),
-        localUriPath: imageFilePath,
-      };
-    } else {
-      const imageUri = this.entries[uri];
-      this.entries[uri] = {
-        ...imageUri,
-        basePath: this.getBaseDir(),
-        localUriPath: imageFilePath,
-      };
-    }
+  _getEntryProps = (props) => {
+    const { id, ignoreQueryString, source } = props;
+    const { uri } = source;
+    const path = uri.substring(uri.lastIndexOf('/')).split('?')[0];
+    const extension = path.indexOf('.') === -1 ? '.jpg' : path.substring(path.lastIndexOf('.'));
+    const hash = id ? id : SHA1(ignoreQueryString ? uri.split('?')[0] : uri);
+    return { hash, extension };
   };
 
-  _updateOfflineStore = async (uri) => {
+  _addEntry = (hash, localUriPath) => {
+    // Save Downloaded date when image downloads for first time
+    const entry = this.entries[hash];
+    if(entry)
+      return this.entries[hash] = {
+        ...entry,
+        basePath: this.getBaseDir(),
+        localUriPath,
+      };
+    return this.entries[hash] = {
+      createdOn: new Date().toString(),
+      basePath: this.getBaseDir(),
+      localUriPath,
+    };
+  };
+
+  _updateOfflineStore = async (uri, entry) => {
     try {
       await AsyncStorage.setItem(`@${this.store.name}:uris`, JSON.stringify(this.entries));
       // Notify subscribed handler
-      this._notify(uri);
+      this._notify(uri, entry);
     } catch (error) {
       if (this.store.debugMode) {
         // Error saving data
-        console.log(' Offline image entry update failed', error);
+        console.log('Offline image entry update failed', error);
       }
     }
   };
