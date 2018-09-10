@@ -100,36 +100,21 @@ class OfflineImageStore {
       });
   };
 
-  /**
-   * This method expects one or more list of image uris as a array to preload them.
-   * This is very useful specially if your application want to support offline.
-   * Note: We recommend call this method after `restore`
-   */
-  preLoad = async (uris) => {
-    if (uris === undefined && !Array.isArray(uris)) {
-      throw 'uris should not be undefined and should be array type';
+  prefetch = async (props) => {
+    const entry = this._getEntry(props);
+    // If image not exist already, then download
+    if (!entry) {
+      this._downloadImage(props);
+      return;
     }
-    uris.forEach((uri) => {
-      const entry = this.entries[uri];
-      // If image not exist already, then download
-      if (!entry) {
-        this._downloadImage({
-          source: { uri },
-        });
-        return;
+    // Exists but Base Dir changed , may be due to update new app version or whatever
+    if (entry) {
+      // Only exist if base directory matches
+      if (entry.basePath !== this.getBaseDir()) {
+        this._downloadImage(props);
       }
-
-      // Exists but Base Dir changed , may be due to update new app version or whatever
-      if (entry) {
-        // Only exist if base directory matches
-        if (entry.basePath !== this.getBaseDir()) {
-          this._downloadImage({
-            source: { uri },
-          });
-        }
-      }
-    });
-  };
+    }
+  }
 
   subscribe = async (handler, props) => {
     const { source } = props;
