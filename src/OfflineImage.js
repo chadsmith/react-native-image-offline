@@ -39,22 +39,23 @@ class OfflineImage extends React.Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    const nextSource = nextProps.source;
-    const reloadImage = nextProps.reloadImage;
-
-    const source = this.props.source;
-    if (nextSource && source && nextSource.uri !== source.uri){
-      const offlinePath = offlineImageStore.getImageOfflinePath(nextSource.uri);
+    const { source } = this.props;
+    const {
+      source: nextSource,
+      reloadImage,
+      ignoreQueryString,
+    } = nextProps;
+    if (nextSource && source && nextSource.uri !== source.uri) {
+      const offlinePath = offlineImageStore.getImageOfflinePath(nextSource, ignoreQueryString);
       this.setState({ path: offlinePath });
-      offlineImageStore.subscribe(source, this.handler, reloadImage);
+      offlineImageStore.subscribe(source, this.handler, reloadImage, ignoreQueryString);
     }
   }
 
   componentWillUnmount(){
-    const { source } = this.props;
+    const { source, ignoreQueryString } = this.props;
     if (source.uri) {
-      // Subscribe so that we can re-render once image downloaded!
-      offlineImageStore.unsubscribe(source, this.handler);
+      offlineImageStore.unsubscribe(source, this.handler, ignoreQueryString);
     }
   }
 
@@ -65,18 +66,25 @@ class OfflineImage extends React.Component {
      * Case 2: Show Fallback image if given until image gets downloaded
      * Case 3: Never cache image if property 'reloadImage' === never
      */
-    const { source, reloadImage } = this.props;
+    const { source, reloadImage, ignoreQueryString } = this.props;
 
     // TODO: check source type as 'ImageURISource'
     // Download only if property 'uri' exists
     if (source.uri) {
       // Get image offline path if already exist else it returns undefined
-      const offlinePath = offlineImageStore.getImageOfflinePath(source.uri);
+      const offlinePath = offlineImageStore.getImageOfflinePath(source, ignoreQueryString);
       this.setState({ path: offlinePath });
 
       // Subscribe so that we can re-render once image downloaded!
-      offlineImageStore.subscribe(source, this.handler, reloadImage);
+      offlineImageStore.subscribe(source, this.handler, reloadImage, ignoreQueryString);
     }
+  }
+
+  reload() {
+    const { source, ignoreQueryString } = this.props;
+    const offlinePath = offlineImageStore.getImageOfflinePath(source, ignoreQueryString);
+    this.setState({ path: offlinePath });
+    offlineImageStore.subscribe(source, this.handler, true, ignoreQueryString);
   }
 
   // this.props.fallBackSource // Show default image as fallbackImage(If exist) until actual image has been loaded.
@@ -119,6 +127,7 @@ OfflineImage.propTypes = {
   //fallbackSource: PropTypes.int,
   component: PropTypes.func,
   reloadImage: PropTypes.bool,
+  ignoreQueryString: PropTypes.bool,
   onLoadEnd: PropTypes.func,
 };
 

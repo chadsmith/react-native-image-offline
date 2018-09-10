@@ -1,6 +1,6 @@
 import RNFetchBlob from 'rn-fetch-blob';
 
-const SHA1 = require('crypto-js/sha1');
+import SHA1 from 'crypto-js/sha1';
 
 // TODO : How user can configure this??
 const IMAGE_OFFLINE_STORE_BASE_DIR = RNFetchBlob.fs.dirs.CacheDir + '/TODO_App';
