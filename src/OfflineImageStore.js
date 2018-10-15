@@ -265,11 +265,27 @@ class OfflineImageStore {
     const { headers, method='GET', uri } = source;
     const { hash, extension } = this._getEntryProps(props);
     const filename = `${hash}${extension}`;
+    const path = `${this.getBaseDir()}/${filename}`;
+    const tempPath = `${this.getBaseDir()}/${hash}_tmp${extension}`;
     return RNFetchBlob
       .config({
-        path: `${this.getBaseDir()}/${filename}`
+        path: tempPath
       })
       .fetch(method, uri, headers)
+      .then((res) => {
+        const { status } = res.info();
+        if(status >= 400)
+          return RNFetchBlob.fs.unlink(tempPath)
+            .then(() => {
+              throw res.text();
+            });
+        return RNFetchBlob.fs.exists(path);
+      })
+      .then(exists => {
+        if(exists)
+          return RNFetchBlob.fs.unlink(path);
+      })
+      .then(() => RNFetchBlob.fs.mv(tempPath, path))
       .then(() => {
         // Add entry to entry list!!
         const entry = this._addEntry(hash, filename);
