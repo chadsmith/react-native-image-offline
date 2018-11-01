@@ -261,29 +261,32 @@ class OfflineImageStore {
   };
 
   _downloadImage = (props) => {
-    const { source } = props;
+    const { source, reloadImage } = props;
     const { headers, method='GET', uri } = source;
     const { hash, extension } = this._getEntryProps(props);
-    const filename = `${hash}${extension}`;
+    const suffix = reloadImage ? `_${Date.now()}` : '';
+    const filename = `${hash}${suffix}${extension}`;
     const path = `${this.getBaseDir()}/${filename}`;
-    const tempPath = `${this.getBaseDir()}/${hash}_tmp${extension}`;
-    return RNFetchBlob
-      .config({
-        path: tempPath
-      })
-      .fetch(method, uri, headers)
+    const tempFilename = `${hash}${suffix}_tmp${extension}`;
+    const tempPath = `${this.getBaseDir()}/${tempFilename}`;
+    const existingPath = this.getImageOfflinePath(props);
+    return this._removeIfExists(tempPath)
+      .then(() =>
+        RNFetchBlob
+          .config({
+            path: tempPath
+          })
+          .fetch(method, uri, headers)
+      )
       .then((res) => {
         const { status } = res.info();
         if(status >= 400)
-          return RNFetchBlob.fs.unlink(tempPath)
+          return this._removeIfExists(tempPath)
             .then(() => {
               throw res.text();
             });
-        return RNFetchBlob.fs.exists(path);
-      })
-      .then(exists => {
-        if(exists)
-          return RNFetchBlob.fs.unlink(path);
+        if(existingPath)
+          return this._removeIfExists(existingPath);
       })
       .then(() => RNFetchBlob.fs.mv(tempPath, path))
       .then(() => {
@@ -298,6 +301,11 @@ class OfflineImageStore {
         }
       });
   };
+
+  _removeIfExists(path) {
+    return RNFetchBlob.fs.unlink(path)
+      .catch(() => {});
+  }
 
   _notify = (uri, entry) => {
     const handlers = this.handlers[uri];
@@ -359,6 +367,7 @@ class OfflineImageStore {
     result.setSeconds(result.getSeconds() + seconds);
     return result;
   };
+
 }
 
 const instance = new OfflineImageStore('RN_Default_ImageStore', 259200);
