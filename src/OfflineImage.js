@@ -15,6 +15,7 @@ class OfflineImage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      loaded: undefined,
       path: undefined,
     };
 
@@ -27,7 +28,7 @@ class OfflineImage extends React.Component {
   handler = (sourceUri, path) => {
     const { onLoadEnd, source } = this.props;
     if (source && source.uri && source.uri === sourceUri) {
-      this.setState({ path: path });
+      this.setState({ path, loaded: Date.now() });
       if (path && onLoadEnd) {
         onLoadEnd(sourceUri);
       }
@@ -35,7 +36,7 @@ class OfflineImage extends React.Component {
   };
 
   shouldComponentUpdate(nextProps, nextState) {
-    return this.state.path !== nextState.path;
+    return (this.state.path !== nextState.path) || (this.state.loaded !== nextState.loaded);
   }
 
   componentWillReceiveProps(nextProps) {
