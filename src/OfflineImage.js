@@ -102,6 +102,8 @@ class OfflineImage extends React.Component {
       } else if (fallbackSource) { // Show fallback image until we download actual image if not able to download show fallback image only!
         sourceImage = fallbackSource;
       }
+    } else {
+      sourceImage = fallbackSource;
     }
 
     const componentProps = {

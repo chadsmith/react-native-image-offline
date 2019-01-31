@@ -11,6 +11,8 @@ class OfflineImageStore {
 
   // TODOs
   // A component should only subscribe only once
+  // Check necessities of using async functions instead of normal ones
+
   constructor(name, storeImageTimeout) {
     if (!OfflineImageStore.instance) {
       OfflineImageStore.instance = this;
@@ -80,23 +82,35 @@ class OfflineImageStore {
    * Removes all the images in the offline store.
    */
   clearStore = (onRestoreCompletion) => {
-    // Remove from offline store
-    return RNFetchBlob.fs.unlink(this.getBaseDir())
+
+    // Check if the folder exists
+    return RNFetchBlob.fs.exists(this.getBaseDir())
+      .then((exists) => {
+        // If folder does not exists, no need to unlink it
+        if (!exists) {
+          return;
+        }
+        // Remove from offline store
+        return RNFetchBlob.fs.unlink(this.getBaseDir())
+      })
       .then(() => { // On completion
         if (this.store.debugMode) {
           console.log('Removed offline image store completely!');
         }
         // Empty all entries so that we should update offline Async storage
-        this.entries = {};
+        Object.keys(this.entries).forEach(key => delete this.entries[key]);
 
         // Update offline Async storage
         this._updateAsyncStorage(onRestoreCompletion);
-
+        return null;
       })
       .catch((err) => {
         if (this.store.debugMode) {
           console.log('unable to remove offline store', err);
         }
+
+        // Call callback with the error
+        onRestoreCompletion(err);
       });
   };
 
@@ -181,13 +195,13 @@ class OfflineImageStore {
 
           // Update AsyncStorage with removed entries
           this._updateAsyncStorage(onRestoreCompletion);
+          return null;
         })
-        .catch((e) => {
-          //console.log('Promise.all', 'catch');
+        .catch((err) => {
           if (this.store.debugMode) {
               console.log('removeExpiredImages error');
           }
-          onRestoreCompletion();
+          onRestoreCompletion(err);
         });
     } else { // Nothing to remove so just trigger callback!
       if (this.store.debugMode) {
@@ -201,9 +215,9 @@ class OfflineImageStore {
    * Update AsyncStorage with entries cache and trigger callback.
    */
   _updateAsyncStorage = (onRestoreCompletionCallback) => {
-    AsyncStorage.setItem(`@${this.store.name}:uris`, JSON.stringify(this.entries), () => {
+    AsyncStorage.setItem(`@${this.store.name}:uris`, JSON.stringify(this.entries), (err) => {
       if (onRestoreCompletionCallback) {
-        onRestoreCompletionCallback();
+        err ? onRestoreCompletionCallback(err) : onRestoreCompletionCallback();
       }
     });
   };
@@ -294,12 +308,12 @@ class OfflineImageStore {
         const entry = this._addEntry(hash, filename);
         // Notify subscribed handler AND Persist entries to AsyncStorage for offline
         this._updateOfflineStore(uri, entry).done();
-      })
-      .catch(() => {
-        if (this.store.debugMode) {
-          console.log('Failed to download image', uri);
-        }
-      });
+        return null;
+      }).catch(() => {
+      if (this.store.debugMode) {
+        console.log('Failed to download image', uri);
+      }
+    });
   };
 
   _removeIfExists(path) {
