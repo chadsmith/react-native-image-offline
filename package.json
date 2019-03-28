@@ -12,6 +12,7 @@
     "image cache"
   ],
   "peerDependencies": {
+    "@react-native-community/async-storage": "1.*",
     "react": "*",
     "react-native": "*",
     "rn-fetch-blob": "0.10.*"
