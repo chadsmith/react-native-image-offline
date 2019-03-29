@@ -14,7 +14,7 @@ React Native library for iOS and Android offline image storage. This library pro
 
 
 ## Installation
-This library has a dependency on `rn-fetch-blob`, please refer to their [installation instructions](https://github.com/joltup/rn-fetch-blob#user-content-installation)
+This library has a dependency on `rn-fetch-blob` and `@react-native-community/async-storage`, please refer to their [installation instructions](https://github.com/joltup/rn-fetch-blob#user-content-installation)
 
 **Using yarn**
 
