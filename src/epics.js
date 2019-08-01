@@ -34,7 +34,11 @@ const downloadImageEpic = (action$, store) =>
 
       RNFetchBlob
         .config({
-          path: imageFilePath
+          path: imageFilePath,
+          IOSBackgroundTask: true,
+          addAndroidDownloads: {
+            useDownloadManager: true
+          }
         })
         .fetch(method, source.uri, source.headers)
         .then(() => {

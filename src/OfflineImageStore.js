@@ -288,7 +288,11 @@ class OfflineImageStore {
       .then(() =>
         RNFetchBlob
           .config({
-            path: tempPath
+            path: tempPath,
+            IOSBackgroundTask: true,
+            addAndroidDownloads: {
+              useDownloadManager: true
+            }
           })
           .fetch(method, uri, headers)
       )
