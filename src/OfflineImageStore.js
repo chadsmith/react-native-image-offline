@@ -297,7 +297,7 @@ class OfflineImageStore {
         if(status >= 400)
           return this._removeIfExists(tempPath)
             .then(() => {
-              throw res.text();
+              throw new Error(`Image was downloaded with status code ${status}`);
             });
         if(existingPath)
           return this._removeIfExists(existingPath);
@@ -309,9 +309,9 @@ class OfflineImageStore {
         // Notify subscribed handler AND Persist entries to AsyncStorage for offline
         this._updateOfflineStore(uri, entry).done();
         return null;
-      }).catch(() => {
+      }).catch((err) => {
       if (this.store.debugMode) {
-        console.log('Failed to download image', uri);
+        console.log('Failed to download image', uri, err);
       }
     });
   };
