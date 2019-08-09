@@ -299,8 +299,12 @@ class OfflineImageStore {
             .then(() => {
               throw new Error(`Image was downloaded with status code ${status}`);
             });
-        if(existingPath)
-          return this._removeIfExists(existingPath);
+        const promises = [];
+        promises.push(this._removeIfExists(path));
+        if(existingPath) {
+          promises.push(this._removeIfExists(existingPath));
+        }
+        return Promise.all(promises);
       })
       .then(() => RNFetchBlob.fs.mv(tempPath, path))
       .then(() => {
