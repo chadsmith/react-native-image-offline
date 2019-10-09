@@ -24,6 +24,7 @@ class OfflineImageStore {
         // Default: 3 days
         storeImageTimeout,
         debugMode: false,
+        backgroundTask: false,
       };
       // If it is `true` then we will remove expired images after given `storeImageTimeout`
       this.handlers = {};
@@ -60,6 +61,10 @@ class OfflineImageStore {
 
     if (config.debugMode === true) {
       this.store.debugMode = true;
+    }
+
+    if (config.backgroundTask === true) {
+      this.store.backgroundTask = true;
     }
 
     // Restore existing entries:
@@ -288,7 +293,8 @@ class OfflineImageStore {
       .then(() =>
         RNFetchBlob
           .config({
-            path: tempPath
+            path: tempPath,
+            IOSBackgroundTask: this.store.backgroundTask,
           })
           .fetch(method, uri, headers)
       )
@@ -299,8 +305,9 @@ class OfflineImageStore {
             .then(() => {
               throw new Error(`Image was downloaded with status code ${status}`);
             });
-        const promises = [];
-        promises.push(this._removeIfExists(path));
+        const promises = [
+          this._removeIfExists(path)
+        ];
         if(existingPath) {
           promises.push(this._removeIfExists(existingPath));
         }
@@ -313,11 +320,12 @@ class OfflineImageStore {
         // Notify subscribed handler AND Persist entries to AsyncStorage for offline
         this._updateOfflineStore(uri, entry).done();
         return null;
-      }).catch((err) => {
-      if (this.store.debugMode) {
-        console.log('Failed to download image', uri, err);
-      }
-    });
+      })
+      .catch((err) => {
+        if (this.store.debugMode) {
+          console.log('Failed to download image', uri, err);
+        }
+      });
   };
 
   _removeIfExists(path) {
