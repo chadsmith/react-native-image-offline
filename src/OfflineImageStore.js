@@ -318,7 +318,7 @@ class OfflineImageStore {
         // Add entry to entry list!!
         const entry = this._addEntry(hash, filename);
         // Notify subscribed handler AND Persist entries to AsyncStorage for offline
-        this._updateOfflineStore(uri, entry).done();
+        this._updateOfflineStore(uri, entry);
         return null;
       })
       .catch((err) => {
