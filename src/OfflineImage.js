@@ -53,7 +53,7 @@ class OfflineImage extends React.Component {
     }
   }
 
-  componentWillUnmount(){
+  componentWillUnmount() {
     const { source } = this.props;
     if (source.uri) {
       offlineImageStore.unsubscribe(this.handler, { source });
@@ -89,7 +89,7 @@ class OfflineImage extends React.Component {
 
   // this.props.fallBackSource // Show default image as fallbackImage(If exist) until actual image has been loaded.
   render() {
-    const { fallbackSource, source, component, reloadImage, ignoreQueryString, ...rest } = this.props;
+    const { fallbackSource, source, component, reloadImage, ignoreQueryString, onError, ...rest } = this.props;
     const { path } = this.state;
     let sourceImage = source;
 
@@ -132,6 +132,7 @@ OfflineImage.propTypes = {
   reloadImage: PropTypes.bool,
   id: PropTypes.string,
   ignoreQueryString: PropTypes.bool,
+  onError: PropTypes.func,
   onLoadEnd: PropTypes.func,
 };
 

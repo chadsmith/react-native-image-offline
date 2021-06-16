@@ -280,7 +280,7 @@ class OfflineImageStore {
   };
 
   _downloadImage = (props) => {
-    const { source, reloadImage } = props;
+    const { onError, source, reloadImage } = props;
     const { headers, method='GET', uri } = source;
     const { hash, extension } = this._getEntryProps(props);
     const suffix = reloadImage ? `_${Date.now()}` : '';
@@ -324,6 +324,9 @@ class OfflineImageStore {
       .catch((err) => {
         if (this.store.debugMode) {
           console.log('Failed to download image', uri, err);
+        }
+        if(onError) {
+          onError(err);
         }
       });
   };
