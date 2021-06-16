@@ -244,7 +244,7 @@ class OfflineImageStore {
     return undefined;
   };
 
-  _getImage = (props) => {
+  _getImage = async (props) => {
     const { reloadImage, source } = props;
     const { uri } = source;
     const entry = this._getEntry(props);
@@ -253,24 +253,32 @@ class OfflineImageStore {
     if (entry) {
       // Only exist if base directory matches
       if (entry.basePath === this.getBaseDir()) {
-        if (this.store.debugMode) {
-          console.log('Image exist offline', uri);
-        }
-        // Notify subscribed handler
-        this._notify(uri, entry);
-
-        // Reload image:
-        // Update existing image in offline store as server side image could have updated!
-        if (reloadImage) {
-          if (this.store.debugMode) {
-            console.log('reloadImage is set to true for uri:', uri);
+        try {
+          const exists = await RNFetchBlob.fs.exists(`${entry.basePath}/${entry.localUriPath}`);
+          if(exists) {
+            if (this.store.debugMode) {
+              console.log('Image exist offline', uri);
+            }
+            // Notify subscribed handler
+            this._notify(uri, entry);
+    
+            // Reload image:
+            // Update existing image in offline store as server side image could have updated!
+            if (reloadImage) {
+              if (this.store.debugMode) {
+                console.log('reloadImage is set to true for uri:', uri);
+              }
+              return this._downloadImage(props);
+            }
+            return;
           }
-          return this._downloadImage(props);
         }
-      } else {
-        return this._downloadImage(props);
+        catch(err) {
+          if (this.store.debugMode) {
+            console.log('error checking if image exists:', err);
+          }
+        }
       }
-      return Promise.resolve();
     }
 
     if (this.store.debugMode) {
