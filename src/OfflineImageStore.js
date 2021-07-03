@@ -319,15 +319,15 @@ class OfflineImageStore {
         if(existingPath) {
           promises.push(this._removeIfExists(existingPath));
         }
-        return Promise.all(promises);
-      })
-      .then(() => RNFetchBlob.fs.mv(tempPath, path))
-      .then(() => {
-        // Add entry to entry list!!
-        const entry = this._addEntry(hash, filename);
-        // Notify subscribed handler AND Persist entries to AsyncStorage for offline
-        this._updateOfflineStore(uri, entry);
-        return null;
+        return Promise.all(promises)
+          .then(() => RNFetchBlob.fs.mv(tempPath, path))
+          .then(() => {
+            // Add entry to entry list!!
+            const entry = this._addEntry(hash, filename);
+            // Notify subscribed handler AND Persist entries to AsyncStorage for offline
+            this._updateOfflineStore(uri, entry);
+            return null;
+          });
       })
       .catch((err) => {
         if (this.store.debugMode) {
